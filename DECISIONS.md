@@ -114,3 +114,17 @@
 **Decision** – The job also runs when the issue body contains the form's `### Catalog entry (JSON)` field. Its first step creates the `submission` label if missing and adds it to the issue, using `GITHUB_TOKEN` so the label doesn't start the workflow again. The PR title for a correction now uses the saved entry's name.
 **Why** – A new repo or fork works without manual label setup. Rejected: documenting "create the label first", which is easy to miss.
 **Consequences** – Nothing to migrate. Existing unlabelled submission issues are picked up on their next edit.
+
+## D-018: Offline PR checks against the schema, test fixtures and usedBy evidence   (2026-10-27, status: proposed)
+**Context** – `data/catalog.schema.json` was published but never applied, so its rules and the hand-written ones in `scripts/validate-lib.mjs` could drift unnoticed. Fixtures with one defect each showed they had: validate-lib accepted 7 of 33 invalid catalogs that the schema rejects (a non-string acronym, licence or OLS id; a one-letter name; unknown fields in publications or usedBy; a non-string note), threw instead of reporting when `publications`, `usedBy` or `modules` was an object rather than a list, and rejected the years 1900 and 2100 that the schema allows. The PR checklist asks that every `usedBy` link show the use, but nothing checked it, and 47 of 55 such links pointed at a site's front page. Adopters count towards the U score, so these links affect grades.
+**Decision** –
+- `scripts/check-schema.py` validates the catalog against the schema with the `jsonschema` library. It also requires that every `tests/fixtures/valid/` file passes and every `tests/fixtures/invalid/` file fails.
+- `tests/validate-lib.test.mjs` (`npm test`, the built-in `node:test`) holds validate-lib to the same fixtures. It also checks that the fields, kinds and categories are the same as in the schema. Duplicate checks span entries, which the schema can't express, so `tests/fixtures/invalid-cross-entry/` is tested only against validate-lib.
+- validate-lib now enforces the schema rules it missed.
+- `validate.mjs --base <ref>` fails when a `usedBy` link added since `<ref>` is a site's front page. Existing links are only counted, as a one-line warning.
+- `.pre-commit-config.yaml` runs these offline checks locally. The Checks workflow runs the same hooks, plus `--base origin/<base>`.
+- Checks pins its actions to commit SHAs, doesn't persist the checkout token, and cancels runs made obsolete by a newer push. Its PR summary no longer says "passed" when an earlier step failed. Submission pins its actions too.
+
+**Why** – A gate is trusted only once it has been seen to fail, and the fixtures are that evidence. A rule added to one validator but not the other now fails a test. Checking only the links a PR adds enforces the checklist without blocking work on the existing 47. Rejected: a JavaScript JSON Schema validator (it would need `npm install`); online link checking for usedBy/modules/tools (deferred, possibly to lychee as bids-specification is adopting).
+**Consequences** – Nothing runs in the Vercel build. The PR checks run on GitHub Actions; contributors can run them with `pre-commit run --all-files`. A new catalog field must be added to the schema, validate-lib and a fixture, or `npm test` fails.
+

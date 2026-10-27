@@ -1,0 +1,38 @@
+# The offline catalog checks, the same ones the Checks workflow runs (.github/workflows/ci.yml).
+#
+#   pip install pre-commit && pre-commit install   # run them on every commit
+#   pre-commit run --all-files                     # run them over the whole repository
+#
+# Needs Node >= 18 on PATH; pre-commit installs the Python dependencies itself.
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: check-json
+      - id: check-yaml
+      - id: check-merge-conflict
+
+  - repo: local
+    hooks:
+      # --base HEAD: usedBy links added in this commit must point at a page that shows the use.
+      - id: validate-catalog
+        name: catalog passes scripts/validate.mjs
+        entry: node scripts/validate.mjs --base HEAD
+        language: system
+        files: ^(data/(catalog|categories)\.json|scripts/(validate|validate-lib|git-catalog)\.mjs)$
+        pass_filenames: false
+
+      - id: catalog-schema
+        name: catalog and fixtures against data/catalog.schema.json
+        entry: python scripts/check-schema.py
+        language: python
+        additional_dependencies: [jsonschema]
+        files: ^(data/catalog(\.schema)?\.json|tests/fixtures/|scripts/check-schema\.py)
+        pass_filenames: false
+
+      - id: validator-tests
+        name: validate-lib rejects the invalid fixtures
+        entry: node --test tests/validate-lib.test.mjs
+        language: system
+        files: ^(data/(catalog\.schema|categories)\.json|scripts/validate-lib\.mjs|tests/)
+        pass_filenames: false

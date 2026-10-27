@@ -11,6 +11,10 @@ npm run dev               # build + preview at http://localhost:4321 (PORT=3200 
 npm run build             # build into dist/ (also validates the catalog)
 npm run validate          # structural checks: fields, ids, URLs, DOIs format, duplicates
 npm run validate:online   # + links resolve, DOIs exist in Crossref, OLS ids are real
+node scripts/validate.mjs --base origin/main     # + usedBy links added since that ref must show the use (CI does this on PRs)
+npm test                  # validate-lib accepts tests/fixtures/valid/ and rejects tests/fixtures/invalid*/
+python3 scripts/check-schema.py   # catalog and fixtures against data/catalog.schema.json (pip install jsonschema)
+pre-commit run --all-files        # all of the offline checks above, as CI runs them (pip install pre-commit)
 npm run evaluate          # run the evaluation → data/evaluation.json + data/runs/<run>.json
 docker build -t neuroschema/oops docker/oops     # OOPS! pitfall scanner, built from source
 OOPS_IMAGE=neuroschema/oops ROBOT_JAR=robot.jar node scripts/quality.mjs   # quality checks; CI runs this weekly
@@ -64,6 +68,7 @@ Grades: A ≥ 85, B ≥ 70, C ≥ 55, D ≥ 40, E < 40. The rules live in [`scri
 | `data/evaluation.json` | Latest evaluation (generated) |
 | `data/runs/*.json` | Archived run snapshots (generated, append-only) |
 | `scripts/` | build, validate, evaluate, rubric, issue → entry, PR report |
+| `tests/` | validator tests; `tests/fixtures/` holds catalogs both validators must accept or reject |
 | `src/assets/` | CSS, JS, logos, favicons, social image |
 | `.github/` | issue form, PR template, workflows |
 
@@ -71,7 +76,7 @@ Grades: A ≥ 85, B ≥ 70, C ≥ 55, D ≥ 40, E < 40. The rules live in [`scri
 
 1. A contributor fills in **neuroschema.org/submit**, which opens a pre-filled GitHub issue. They can also open the issue form directly, or send a pull request editing `data/catalog.json`.
 2. **Submission to pull request** (`.github/workflows/submission.yml`) converts the issue into a pull request. It fills paper titles from Crossref and comments on the issue with the PR link, or with what needs fixing.
-3. **Checks** (`.github/workflows/ci.yml`) runs on every PR. It validates the catalog and runs online checks for the changed entries: links, DOIs and OLS IDs. It runs a FAIR evaluation preview, then posts a summary as a PR comment and in the job summary.
+3. **Checks** (`.github/workflows/ci.yml`) runs on every PR. It validates the catalog with `scripts/validate-lib.mjs` and against `data/catalog.schema.json`, requires each `usedBy` link the PR adds to point at a page that shows the use (not a site's front page), and runs online checks for the changed entries: links, DOIs and OLS IDs. It runs a FAIR evaluation preview, then posts a summary as a PR comment and in the job summary.
 4. A maintainer reviews and merges. **Evaluate catalog** runs on merge and every Monday. It commits `data/evaluation.json` plus a new `data/runs/` snapshot, and Vercel redeploys.
 
 ### Repository setup
