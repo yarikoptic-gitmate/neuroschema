@@ -1084,7 +1084,7 @@ function submitPage() {
       <label>BioPortal acronym<input name="bioportal" placeholder="UBERON"></label>
     </div>
     <label>Reference paper DOI<input name="doi" placeholder="10.1186/gb-2012-13-1-r5"></label>
-    <label>Used by <small class="muted">one per line: Project name | URL | how it is used</small><textarea name="usedBy" rows="3" placeholder="OpenNeuro | https://openneuro.org | Required dataset format"></textarea></label>
+    <label>Used by <small class="muted">one per line: Project name | URL of a page that shows the use | how it is used</small><textarea name="usedBy" rows="3" placeholder="BIDS | https://bids-specification.readthedocs.io/en/stable/glossary.html#objects.metadata.CogAtlasID | Task metadata field"></textarea></label>
     <label>Tags <small class="muted">comma-separated</small><input name="tags" placeholder="brain regions, mouse"></label>
     <label>Anything else reviewers should know?<textarea name="notes" rows="2"></textarea></label>
     <p class="form-errors" id="form-errors" role="alert" hidden></p>

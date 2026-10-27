@@ -2,11 +2,14 @@
 // Mirrors data/catalog.schema.json, plus cross-entry checks (duplicates) that JSON Schema can't express.
 
 export const KINDS = ["ontology", "schema", "vocabulary", "atlas", "data-standard", "knowledge-base"];
-const ALLOWED = new Set([
+export const FIELDS = new Set([
   "id", "acronym", "name", "category", "kind", "description", "formats", "species", "maintainer", "license",
   "homepage", "repository", "download", "ols", "obo", "bioportal", "bioregistry", "status", "publications", "usedBy", "modules", "tools", "tags",
 ]);
 const URL_FIELDS = ["homepage", "repository", "download"];
+const STRING_FIELDS = ["acronym", "maintainer", "license", "bioportal", "bioregistry", "ols", "obo"];
+const PUBLICATION_FIELDS = new Set(["title", "doi", "year"]);
+const LINK_FIELDS = new Set(["name", "url", "note"]);
 const isUrl = (s) => typeof s === "string" && /^https?:\/\/[^\s]+$/.test(s);
 const norm = (s) => String(s || "").toLowerCase().replace(/[^a-z0-9]/g, "");
 const normUrl = (s) => String(s || "").toLowerCase().replace(/^https?:\/\/(www\.)?/, "").replace(/\/+$/, "");
@@ -15,9 +18,11 @@ export function validateEntry(e, categoryIds) {
   const p = [];
   const where = `entry "${e?.id ?? "?"}"`;
   if (!e || typeof e !== "object") return [`${where}: not an object`];
-  for (const k of Object.keys(e)) if (!ALLOWED.has(k)) p.push(`${where}: unknown field "${k}"`);
+  for (const k of Object.keys(e)) if (!FIELDS.has(k)) p.push(`${where}: unknown field "${k}"`);
   if (!/^[a-z0-9]+(-[a-z0-9]+)*$/.test(e.id || "")) p.push(`${where}: "id" must be lowercase letters/digits separated by dashes`);
   for (const k of ["name", "category", "kind", "description"]) if (!e[k] || typeof e[k] !== "string") p.push(`${where}: "${k}" is required`);
+  if (typeof e.name === "string" && e.name && e.name.length < 2) p.push(`${where}: "name" should be at least 2 characters`);
+  for (const k of STRING_FIELDS) if (e[k] != null && typeof e[k] !== "string") p.push(`${where}: "${k}" must be a string`);
   if (e.category && !categoryIds.has(e.category)) p.push(`${where}: unknown category "${e.category}" (use one of ${[...categoryIds].join(", ")})`);
   if (e.kind && !KINDS.includes(e.kind)) p.push(`${where}: unknown kind "${e.kind}" (use one of ${KINDS.join(", ")})`);
   if (e.description && e.description.length < 40) p.push(`${where}: description should be at least 40 characters`);
@@ -26,16 +31,22 @@ export function validateEntry(e, categoryIds) {
   for (const k of URL_FIELDS) if (e[k] != null && !isUrl(e[k])) p.push(`${where}: "${k}" must be an http(s) URL`);
   for (const k of ["formats", "species", "tags"]) if (e[k] != null && (!Array.isArray(e[k]) || e[k].some((x) => typeof x !== "string" || !x.trim()))) p.push(`${where}: "${k}" must be a list of strings`);
   if (e.status != null && !["active", "legacy"].includes(e.status)) p.push(`${where}: "status" must be "active" or "legacy"`);
-  for (const k of ["ols", "obo"]) if (e[k] != null && !/^[a-z0-9_]+$/.test(e[k])) p.push(`${where}: "${k}" must be a lowercase id`);
-  for (const [i, pub] of (e.publications || []).entries()) {
+  for (const k of ["ols", "obo"]) if (typeof e[k] === "string" && !/^[a-z0-9_]+$/.test(e[k])) p.push(`${where}: "${k}" must be a lowercase id`);
+  // A list given as a single object used to throw here, which failed the build instead of naming the entry.
+  for (const k of ["publications", "usedBy", "modules", "tools"]) if (e[k] != null && !Array.isArray(e[k])) p.push(`${where}: "${k}" must be a list`);
+  const list = (k) => (Array.isArray(e[k]) ? e[k] : []);
+  for (const [i, pub] of list("publications").entries()) {
     if (!pub?.title || !pub?.doi) p.push(`${where}: publications[${i}] needs "title" and "doi"`);
     if (pub?.doi && !/^10\.\d{4,9}\/\S+$/.test(pub.doi)) p.push(`${where}: publications[${i}].doi "${pub.doi}" is not a DOI (expected 10.xxxx/…)`);
-    if (pub?.year != null && !(Number.isInteger(pub.year) && pub.year > 1900 && pub.year < 2100)) p.push(`${where}: publications[${i}].year must be a year`);
+    if (pub?.year != null && !(Number.isInteger(pub.year) && pub.year >= 1900 && pub.year <= 2100)) p.push(`${where}: publications[${i}].year must be a year`);
+    for (const f of Object.keys(pub || {})) if (!PUBLICATION_FIELDS.has(f)) p.push(`${where}: publications[${i}] has unknown field "${f}"`);
   }
   for (const k of ["usedBy", "modules", "tools"])
-    for (const [i, u] of (e[k] || []).entries()) {
+    for (const [i, u] of list(k).entries()) {
       if (!u?.name) p.push(`${where}: ${k}[${i}] needs "name"`);
       if (!isUrl(u?.url)) p.push(`${where}: ${k}[${i}] needs an http(s) "url"`);
+      if (u?.note != null && typeof u.note !== "string") p.push(`${where}: ${k}[${i}].note must be a string`);
+      for (const f of Object.keys(u || {})) if (!LINK_FIELDS.has(f)) p.push(`${where}: ${k}[${i}] has unknown field "${f}"`);
     }
   return p;
 }
@@ -60,4 +71,23 @@ export function validateCatalog(catalog, categories) {
     if (e.download) check("url", normUrl(e.download), "download URL");
   }
   return problems;
+}
+
+// A usedBy link to a site's front page shows the project, not that it uses the resource.
+export function isSiteRoot(url) {
+  try {
+    const u = new URL(url);
+    return u.pathname === "/" && !u.search && !u.hash;
+  } catch {
+    return false;
+  }
+}
+
+// The usedBy links in `catalog` that `before` (the catalog at an earlier commit) didn't have,
+// each with the id of its entry.
+export function newUsedBy(catalog, before) {
+  const had = new Map(before.map((e) => [e.id, new Set((Array.isArray(e.usedBy) ? e.usedBy : []).map((u) => `${u?.name}\n${u?.url}`))]));
+  return catalog.flatMap((e) =>
+    (Array.isArray(e?.usedBy) ? e.usedBy : []).filter((u) => !had.get(e.id)?.has(`${u?.name}\n${u?.url}`)).map((u) => ({ id: e.id, ...u })),
+  );
 }

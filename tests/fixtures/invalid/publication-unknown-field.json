@@ -1,0 +1,18 @@
+[
+  {
+    "id": "example-ontology",
+    "name": "Example Ontology",
+    "category": "anatomy",
+    "kind": "ontology",
+    "description": "A made-up ontology that exists only to exercise the catalog validators.",
+    "homepage": "https://example.org/exo/",
+    "publications": [
+      {
+        "title": "The Example Ontology",
+        "doi": "10.5555/example.2",
+        "year": 2026,
+        "url": "https://example.org/paper"
+      }
+    ]
+  }
+]

@@ -1,0 +1,67 @@
+[
+  {
+    "id": "example-ontology",
+    "name": "Example Ontology",
+    "category": "anatomy",
+    "kind": "ontology",
+    "description": "A made-up ontology that exists only to exercise the catalog validators.",
+    "homepage": "https://example.org/exo/"
+  },
+  {
+    "id": "example-schema",
+    "acronym": "EXS",
+    "name": "Example Ontology",
+    "category": "metadata",
+    "kind": "schema",
+    "description": "A made-up schema that uses every catalog field, so a field missing from either validator shows up.",
+    "formats": [
+      "JSON Schema",
+      "JSON-LD"
+    ],
+    "species": [
+      "Multi-species"
+    ],
+    "maintainer": "Example consortium",
+    "license": "CC BY 4.0",
+    "homepage": "https://example.org/exs/",
+    "repository": "https://example.org/git/exs",
+    "download": "https://example.org/exs/schema.json",
+    "ols": "exs",
+    "obo": "exs",
+    "bioportal": "EXS",
+    "bioregistry": "exs",
+    "status": "active",
+    "publications": [
+      {
+        "title": "The Example Schema",
+        "doi": "10.5555/example.1",
+        "year": 2026
+      }
+    ],
+    "usedBy": [
+      {
+        "name": "Example Archive",
+        "url": "https://example.org/archive/docs/metadata",
+        "note": "Dataset metadata"
+      }
+    ],
+    "modules": [
+      {
+        "name": "Core",
+        "url": "https://example.org/exs/core.json",
+        "note": "Core classes"
+      }
+    ],
+    "tools": [
+      {
+        "name": "exs-validator",
+        "url": "https://example.org/git/exs-validator",
+        "note": "Validates instances"
+      }
+    ],
+    "tags": [
+      "metadata",
+      "example"
+    ]
+  }
+]

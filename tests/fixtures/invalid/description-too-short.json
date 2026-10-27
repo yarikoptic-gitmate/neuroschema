@@ -1,0 +1,10 @@
+[
+  {
+    "id": "example-ontology",
+    "name": "Example Ontology",
+    "category": "anatomy",
+    "kind": "ontology",
+    "description": "Too short.",
+    "homepage": "https://example.org/exo/"
+  }
+]

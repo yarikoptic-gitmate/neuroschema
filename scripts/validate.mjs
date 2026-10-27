@@ -4,10 +4,12 @@
 //   node scripts/validate.mjs --online           also check links, DOIs and registry ids
 //   ONLY=id1,id2 node scripts/validate.mjs --online --report out.md
 //                                                online checks for just these entries, and a Markdown report (for PR comments)
+//   node scripts/validate.mjs --base origin/main also require the usedBy links added since that ref to show the use
 import { readFile, writeFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
-import { validateCatalog } from "./validate-lib.mjs";
+import { validateCatalog, isSiteRoot, newUsedBy } from "./validate-lib.mjs";
+import { catalogAt, changedIds } from "./git-catalog.mjs";
 
 const root = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const catalog = JSON.parse(await readFile(path.join(root, "data/catalog.json"), "utf8"));
@@ -15,6 +17,7 @@ const categories = JSON.parse(await readFile(path.join(root, "data/categories.js
 const args = process.argv.slice(2);
 const online = args.includes("--online");
 const reportPath = args.includes("--report") ? args[args.indexOf("--report") + 1] : null;
+const base = args.includes("--base") ? args[args.indexOf("--base") + 1] : null;
 const only = process.env.ONLY ? new Set(process.env.ONLY.split(",").filter(Boolean)) : null;
 
 const errors = validateCatalog(catalog, categories);
@@ -32,6 +35,21 @@ const targets = catalog.filter((e) => !only || only.has(e.id));
 for (const e of targets)
   for (const o of catalog)
     if (o.id !== e.id && jaccard(e.name, o.name) > 0.8) warnings.push(`entry "${e.id}": name is very similar to "${o.id}" (${o.name}) — check it isn't a duplicate`);
+
+// A usedBy link should open a page that shows the use (the PR checklist asks for it), which a site's
+// front page doesn't. Links added since --base must; older ones are only warned about, and with
+// --base only in the entries that changed, so a PR's report doesn't repeat the whole catalog's.
+const before = base ? catalogAt(base) : null;
+const added = new Set(before ? newUsedBy(catalog, before).map((u) => `${u.id}\n${u.name}\n${u.url}`) : []);
+const touched = before ? new Set(changedIds(catalog, before)) : null;
+const frontPages = [];
+for (const e of targets)
+  for (const u of Array.isArray(e?.usedBy) ? e.usedBy : [])
+    if (isSiteRoot(u?.url)) {
+      const msg = `entry "${e.id}": usedBy "${u.name}" links to the front page ${u.url}`;
+      if (added.has(`${e.id}\n${u.name}\n${u.url}`)) errors.push(`${msg}; link to a page that shows the use instead`);
+      else if (!touched || touched.has(e.id)) frontPages.push(msg);
+    }
 
 async function head(url) {
   const ctrl = new AbortController();
@@ -88,6 +106,8 @@ if (online) {
 
 if (args.includes("--verbose") || warnings.length <= 10) for (const w of warnings) console.warn(`⚠ ${w}`);
 else if (warnings.length) console.warn(`⚠ ${warnings.length} possible near-duplicates (run with --verbose to list them)`);
+if (args.includes("--verbose")) for (const w of frontPages) console.warn(`⚠ ${w}`);
+else if (frontPages.length) console.warn(`⚠ ${frontPages.length} usedBy links point at a site's front page rather than a page that shows the use (run with --verbose to list them)`);
 for (const p of errors) console.error(`✗ ${p}`);
 console.log(errors.length ? `\n${errors.length} problem(s) found.` : `✓ ${catalog.length} entries valid${online ? ` (online checks on ${targets.length})` : ""}.`);
 
@@ -96,7 +116,7 @@ if (reportPath) {
     `### ${errors.length ? "❌ Catalog validation failed" : "✅ Catalog validation passed"}`,
     "",
     ...(errors.length ? ["**Problems**", "", ...errors.map((e) => `- ${e}`), ""] : []),
-    ...(warnings.length ? ["**Warnings**", "", ...warnings.map((w) => `- ${w}`), ""] : []),
+    ...(warnings.length || frontPages.length ? ["**Warnings**", "", ...[...warnings, ...frontPages].map((w) => `- ${w}`), ""] : []),
     ...(checks.length ? ["| Entry | Check | Result | Detail |", "|---|---|---|---|", ...checks.map((c) => `| \`${c.id}\` | ${c.what} | ${c.ok ? "✅" : "❌"} | ${c.detail.replace(/\|/g, "\\|")} |`), ""] : []),
   ].join("\n");
   await writeFile(reportPath, md);

@@ -1,0 +1,15 @@
+[
+  {
+    "id": "example-ontology",
+    "name": "Example Ontology",
+    "category": "anatomy",
+    "kind": "ontology",
+    "description": "A made-up ontology that exists only to exercise the catalog validators.",
+    "homepage": "https://example.org/exo/",
+    "tools": [
+      {
+        "url": "https://example.org/git/exo-tools"
+      }
+    ]
+  }
+]

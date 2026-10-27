@@ -14,6 +14,7 @@
     "serve": "PORT=3200 node scripts/serve.mjs",
     "validate": "node scripts/validate.mjs",
     "validate:online": "node scripts/validate.mjs --online",
+    "test": "node --test tests/validate-lib.test.mjs",
     "quality": "node scripts/quality.mjs",
     "evaluate": "node scripts/evaluate.mjs",
     "rescore": "node scripts/rescore.mjs",
