@@ -234,6 +234,45 @@
         "bioregistry": {
           "type": "string",
           "description": "Prefix in bioregistry.io, if different from obo/ols"
+        },
+        "relations": {
+          "type": "array",
+          "description": "Curated relations to other catalog entries, read as '<this entry> <type> <target>'. Shown in the relationship graph (/graph/) next to imports harvested from OLS, Bioregistry and the OBO Dashboard.",
+          "items": {
+            "type": "object",
+            "required": [
+              "type",
+              "target"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "type": {
+                "enum": [
+                  "imports",
+                  "uses",
+                  "extends",
+                  "derived-from",
+                  "maps-to",
+                  "part-of"
+                ]
+              },
+              "target": {
+                "type": "string",
+                "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+                "description": "id of another catalog entry"
+              },
+              "note": {
+                "type": "string",
+                "description": "How the relation shows up, e.g. which field or tool carries it"
+              },
+              "url": {
+                "type": "string",
+                "format": "uri",
+                "pattern": "^https?://",
+                "description": "Where the relation is documented"
+              }
+            }
+          }
         }
       }
     }

@@ -419,6 +419,14 @@
         "note": "Spatial mapping of cell types"
       }
     ],
+    "relations": [
+      {
+        "type": "uses",
+        "target": "mba",
+        "note": "Annotation volumes are labelled with the Allen Mouse Brain Atlas region hierarchy",
+        "url": "https://doi.org/10.1016/j.cell.2020.04.007"
+      }
+    ],
     "tags": [
       "reference space",
       "mouse",
@@ -623,6 +631,14 @@
         "note": "Neuron populations in connectivity models"
       }
     ],
+    "relations": [
+      {
+        "type": "part-of",
+        "target": "nifstd",
+        "note": "Developed as part of the NIF Ontology",
+        "url": "https://github.com/SciCrunch/NIF-Ontology"
+      }
+    ],
     "tags": [
       "neuron types",
       "phenotypes"
@@ -650,6 +666,14 @@
         "name": "BICAN",
         "url": "https://www.portal.brain-bican.org/",
         "note": "Cell type taxonomy annotation"
+      }
+    ],
+    "relations": [
+      {
+        "type": "uses",
+        "target": "cl",
+        "note": "cell_ontology_term_id links each annotation to a Cell Ontology term",
+        "url": "https://github.com/cellannotation/cell-annotation-schema"
       }
     ],
     "tags": [
@@ -1414,6 +1438,14 @@
         "note": "Reproducible neuroimaging tools"
       }
     ],
+    "relations": [
+      {
+        "type": "maps-to",
+        "target": "bids",
+        "note": "PyNIDM's bidsmri2nidm converts BIDS datasets to NIDM-Experiment documents",
+        "url": "https://github.com/incf-nidash/PyNIDM"
+      }
+    ],
     "tags": [
       "provenance",
       "fMRI",
@@ -1537,6 +1569,14 @@
         "name": "BIDS",
         "url": "https://bids-specification.readthedocs.io/en/stable/modality-specific-files/intracranial-electroencephalography.html#ieeg-recording-data",
         "note": "Accepted data format for iEEG recordings (.nwb)"
+      }
+    ],
+    "relations": [
+      {
+        "type": "uses",
+        "target": "hed",
+        "note": "HED annotations of NWB dynamic tables through the ndx-hed extension",
+        "url": "https://github.com/hed-standard/ndx-hed"
       }
     ],
     "tags": [
@@ -1710,6 +1750,26 @@
         "note": "Native metadata model"
       }
     ],
+    "relations": [
+      {
+        "type": "uses",
+        "target": "ccfv3",
+        "note": "SANDS brain-atlas library: Allen Mouse Brain Atlas (CCFv3 versions)",
+        "url": "https://openminds-documentation.readthedocs.io/en/latest/instance_libraries/brainAtlases.html"
+      },
+      {
+        "type": "uses",
+        "target": "whs-rat",
+        "note": "SANDS brain-atlas library: Waxholm Space atlas of the Sprague Dawley rat brain",
+        "url": "https://openminds-documentation.readthedocs.io/en/latest/instance_libraries/brainAtlases.html"
+      },
+      {
+        "type": "uses",
+        "target": "julich-brain",
+        "note": "SANDS brain-atlas library: Julich-Brain",
+        "url": "https://openminds-documentation.readthedocs.io/en/latest/instance_libraries/brainAtlases.html"
+      }
+    ],
     "tags": [
       "metadata",
       "knowledge graph",
@@ -1847,6 +1907,20 @@
         "note": "Dataset metadata"
       }
     ],
+    "relations": [
+      {
+        "type": "uses",
+        "target": "nwb",
+        "note": "Dandiset dataStandard declares NWB",
+        "url": "https://github.com/dandi/dandi-schema/blob/master/dandischema/models.py"
+      },
+      {
+        "type": "uses",
+        "target": "bids",
+        "note": "Dandiset dataStandard declares BIDS",
+        "url": "https://github.com/dandi/dandi-schema/blob/master/dandischema/models.py"
+      }
+    ],
     "tags": [
       "metadata",
       "archive",
@@ -1925,6 +1999,14 @@
         "note": "Reproducible assessment collection"
       }
     ],
+    "relations": [
+      {
+        "type": "uses",
+        "target": "nidm",
+        "note": "The JSON-LD context maps fields to NIDM terms (e.g. nidm:subject_id)",
+        "url": "https://github.com/ReproNim/reproschema/blob/main/contexts/reproschema"
+      }
+    ],
     "tags": [
       "questionnaires",
       "assessments",
@@ -1987,6 +2069,20 @@
         "note": "Required dataset structure"
       }
     ],
+    "relations": [
+      {
+        "type": "derived-from",
+        "target": "bids",
+        "note": "Built on BIDS, with neuroimaging-specific parts removed and animal and tissue data accommodated",
+        "url": "https://doi.org/10.1101/2021.02.10.430563"
+      },
+      {
+        "type": "uses",
+        "target": "interlex",
+        "note": "Curation tooling maps dataset metadata to InterLex terms",
+        "url": "https://github.com/SciCrunch/sparc-curation"
+      }
+    ],
     "tags": [
       "peripheral nervous system",
       "dataset structure"
@@ -2027,6 +2123,14 @@
         "name": "SPARC",
         "url": "https://sparc.science/",
         "note": "Via InterLex"
+      }
+    ],
+    "relations": [
+      {
+        "type": "uses",
+        "target": "interlex",
+        "note": "New terms are minted in InterLex and then included in the ontology",
+        "url": "https://github.com/SciCrunch/NIF-Ontology"
       }
     ],
     "tags": [
@@ -2115,6 +2219,14 @@
     "download": "https://purl.brain-bican.org/ontology/pbao/pbao.owl",
     "publications": [],
     "usedBy": [],
+    "relations": [
+      {
+        "type": "maps-to",
+        "target": "uberon",
+        "note": "Primate Brain Atlas structures are mapped to Uberon",
+        "url": "https://brain-bican.github.io/primate_brain_atlas_ontology/"
+      }
+    ],
     "tags": [
       "brain regions",
       "primate",
@@ -2374,6 +2486,14 @@
     "homepage": "https://psychds-docs.readthedocs.io/",
     "repository": "https://github.com/psych-ds/psych-DS",
     "publications": [],
+    "relations": [
+      {
+        "type": "derived-from",
+        "target": "bids",
+        "note": "Heavily inspired by BIDS, adapted to psychology and behavioural data",
+        "url": "https://psychds-docs.readthedocs.io/"
+      }
+    ],
     "tags": [
       "behaviour",
       "psychology",
@@ -2469,6 +2589,14 @@
         "note": "Federated cross-dataset search"
       }
     ],
+    "relations": [
+      {
+        "type": "uses",
+        "target": "nidm",
+        "note": "Imaging-modality terms come from the NIDM namespace",
+        "url": "https://github.com/neurobagel/documentation/blob/main/docs/data_models/term_naming_standards.md"
+      }
+    ],
     "tags": [
       "phenotype",
       "harmonisation",
@@ -2500,6 +2628,14 @@
         "name": "datashuttle",
         "url": "https://datashuttle.neuroinformatics.dev/",
         "note": "Creates, validates and transfers NeuroBlueprint folder trees"
+      }
+    ],
+    "relations": [
+      {
+        "type": "derived-from",
+        "target": "bids",
+        "note": "Inspired by and based on the BIDS specification",
+        "url": "https://github.com/neuroinformatics-unit/NeuroBlueprint"
       }
     ],
     "tags": [

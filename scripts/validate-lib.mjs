@@ -2,9 +2,19 @@
 // Mirrors data/catalog.schema.json, plus cross-entry checks (duplicates) that JSON Schema can't express.
 
 export const KINDS = ["ontology", "schema", "vocabulary", "atlas", "data-standard", "knowledge-base"];
+// Curated relations between catalog entries ("<this entry> <type> <target>"), shown in the relationship graph.
+// Imports between ontologies are also harvested from OLS, Bioregistry and the OBO Dashboard (scripts/graph.mjs).
+export const RELATION_TYPES = {
+  imports: "imports or reuses terms from",
+  uses: "references terms, identifiers or annotations from",
+  extends: "extends",
+  "derived-from": "is derived from or adapted from",
+  "maps-to": "provides a mapping or conversion to",
+  "part-of": "is a component or module of",
+};
 const ALLOWED = new Set([
   "id", "acronym", "name", "category", "kind", "description", "formats", "species", "maintainer", "license",
-  "homepage", "repository", "download", "ols", "obo", "bioportal", "bioregistry", "status", "publications", "usedBy", "modules", "tools", "tags",
+  "homepage", "repository", "download", "ols", "obo", "bioportal", "bioregistry", "status", "publications", "usedBy", "modules", "tools", "tags", "relations",
 ]);
 const URL_FIELDS = ["homepage", "repository", "download"];
 const isUrl = (s) => typeof s === "string" && /^https?:\/\/[^\s]+$/.test(s);
@@ -37,6 +47,19 @@ export function validateEntry(e, categoryIds) {
       if (!u?.name) p.push(`${where}: ${k}[${i}] needs "name"`);
       if (!isUrl(u?.url)) p.push(`${where}: ${k}[${i}] needs an http(s) "url"`);
     }
+  if (e.relations != null && !Array.isArray(e.relations)) p.push(`${where}: "relations" must be a list`);
+  const relSeen = new Set();
+  for (const [i, r] of (Array.isArray(e.relations) ? e.relations : []).entries()) {
+    for (const k of Object.keys(r || {})) if (!["type", "target", "note", "url"].includes(k)) p.push(`${where}: relations[${i}] has unknown field "${k}"`);
+    if (!Object.hasOwn(RELATION_TYPES, r?.type)) p.push(`${where}: relations[${i}].type must be one of ${Object.keys(RELATION_TYPES).join(", ")}`);
+    if (!/^[a-z0-9]+(-[a-z0-9]+)*$/.test(r?.target || "")) p.push(`${where}: relations[${i}].target must be the id of a catalog entry`);
+    if (r?.target === e.id) p.push(`${where}: relations[${i}] points at the entry itself`);
+    if (r?.url != null && !isUrl(r.url)) p.push(`${where}: relations[${i}].url must be an http(s) URL`);
+    if (r?.note != null && typeof r.note !== "string") p.push(`${where}: relations[${i}].note must be a string`);
+    const key = `${r?.type} ${r?.target}`;
+    if (relSeen.has(key)) p.push(`${where}: relations[${i}] repeats "${key}"`);
+    relSeen.add(key);
+  }
   return p;
 }
 
@@ -59,5 +82,9 @@ export function validateCatalog(catalog, categories) {
     // so only downloads must be unique.
     if (e.download) check("url", normUrl(e.download), "download URL");
   }
+  const ids = new Set(catalog.map((e) => e.id));
+  for (const e of catalog)
+    for (const [i, r] of (Array.isArray(e.relations) ? e.relations : []).entries())
+      if (r?.target && r.target !== e.id && !ids.has(r.target)) problems.push(`entry "${e.id}": relations[${i}].target "${r.target}" is not in the catalog`);
   return problems;
 }
