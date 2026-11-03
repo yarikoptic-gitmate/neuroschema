@@ -21,6 +21,7 @@
     "rescore": "node scripts/rescore.mjs",
     "rescore:preview": "PREVIEW=1 node scripts/rescore.mjs",
     "score:diff": "node scripts/score-diff.mjs",
+    "vendor": "node scripts/vendor.mjs",
     "images": "docker build -q -t neuroschema/oops docker/oops && docker build -q -t neuroschema/robot docker/robot",
     "refresh": "scripts/refresh.sh",
     "quality:all": "scripts/quality-all.sh"
