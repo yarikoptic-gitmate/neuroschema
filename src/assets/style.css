@@ -361,6 +361,9 @@ td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; white-sp
 .prose { max-width: 820px; }
 .prose h2 { margin-top: 1.4em; }
 
+/* Header: the full nav needs about 1000px. Below that the secondary links (also in the footer) give way. */
+@media (max-width: 1100px) { .nav a { padding: 6px 7px; } }
+@media (max-width: 1000px) { .nav a[href="/categories/"], .nav a[href="/about/"], .nav a[href="/roadmap/"], .nav a[href="/contact/"] { display: none; } }
 @media (max-width: 960px) {
   .entry-grid, .submit-grid { grid-template-columns: minmax(0, 1fr); }
   .submit-side { position: static; }
@@ -372,7 +375,6 @@ td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; white-sp
   .hero-art { opacity: .45; }
   .logo img { height: 26px; }
   .nav a { padding: 6px 6px; font-size: .85rem; }
-  .nav a[href="/categories/"], .nav a[href="/about/"], .nav a[href="/roadmap/"], .nav a[href="/contact/"] { display: none; }
   .stats, .grade-dist, .flow { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .entry-head { grid-template-columns: minmax(0, 1fr); }
   .score-card { justify-self: start; }
@@ -451,7 +453,7 @@ mark { background: var(--gold-soft); color: inherit; border-radius: 3px; padding
 .nav a.nav-ext { color: var(--gold-ink); }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .nav a.nav-ext { color: var(--gold); } }
 :root[data-theme="dark"] .nav a.nav-ext { color: var(--gold); }
-@media (max-width: 640px) { .nav a.nav-ext { display: none; } }
+@media (max-width: 720px) { .nav a.nav-ext { display: none; } }
 
 /* Contact page */
 .contact-grid { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 20px; align-items: stretch; }
