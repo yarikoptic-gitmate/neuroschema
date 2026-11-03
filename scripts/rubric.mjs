@@ -107,7 +107,8 @@ export function adopters(entry, facts) {
 }
 
 // Vocabularies this resource imports / depends on, and ontologies that reuse it.
-const BASIC_VOCABS = ["dc", "dcterms", "owl", "rdf", "rdfs", "xsd", "skos", "oio", "foaf", "swrl"];
+// W3C/metadata namespaces every ontology declares; they say nothing about reuse (also used by scripts/graph.mjs).
+export const BASIC_VOCABS = ["dc", "dcterms", "owl", "rdf", "rdfs", "xsd", "skos", "oio", "foaf", "swrl"];
 // Vocabularies an ontology references: imports listed by OLS/Bioregistry, plus (rubric v4.1) what its own file
 // declares with owl:imports and whose terms it uses (≥ 3 distinct terms), read by scripts/artefact-scan.mjs.
 export function imports(facts) {

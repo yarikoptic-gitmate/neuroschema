@@ -7,6 +7,7 @@ import path from "node:path";
 import { RUBRIC, PENALTY, GRADES, RUBRIC_VERSION, FAIR_MAX, T, UPPER_ONTOLOGIES, adopters, imports as importsOf, reusedBy } from "./rubric.mjs";
 import { validateCatalog, KINDS } from "./validate-lib.mjs";
 import { trackedData, localData } from "./paths.mjs";
+import { buildGraph } from "./graph.mjs";
 
 const root = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const read = async (p) => JSON.parse(await readFile(path.join(root, p), "utf8"));
@@ -341,6 +342,7 @@ ${gtmBody}
     <a class="brand" href="/" aria-label="NeuroSchema home">${logo()}</a>
     <nav class="nav" aria-label="Main">
       ${nav("/catalog/", "Catalog")}
+      ${nav("/graph/", "Graph")}
       ${nav("/categories/", "Categories")}
       ${nav("/evaluation/", "Evaluation")}
       ${nav("/submit/", "Submit")}
@@ -362,6 +364,7 @@ ${body}
     <div class="footer-brand">${logo("logo-footer")}<p class="muted">${esc(config.description)}</p></div>
     <nav class="footer-links" aria-label="Footer">
       <a href="/categories/">Categories</a>
+      <a href="/graph/">Relationship graph</a>
       <a href="/evaluation/">Methodology</a>
       <a href="/evaluation/#runs">Run history</a>
       <a href="/submit/">Submit a resource</a>
@@ -369,6 +372,7 @@ ${body}
       <a href="/contact/">Contact</a>
       <a href="/catalog.json">catalog.json</a>
       <a href="/catalog.jsonld">DCAT JSON-LD</a>
+      <a href="/graph.json">graph.json</a>
       ${config.repository ? `<a href="${attr(config.repository)}">GitHub</a>` : ""}
       ${SIS ? `<a href="${attr(SIS.url)}">${esc(SIS.name)}: all domains ↗</a>` : ""}
       <a href="/privacy/">Privacy</a>
@@ -511,7 +515,7 @@ function homePage() {
   <div class="cards">${recent.map(card).join("")}</div>
 </section>
 
-<section class="wrap section browse-all"><a class="btn" href="/catalog/">Browse the full catalog</a> <a class="btn-ghost" href="/evaluation/">How we score</a></section>
+<section class="wrap section browse-all"><a class="btn" href="/catalog/">Browse the full catalog</a> <a class="btn-ghost" href="/graph/">Relationship graph</a> <a class="btn-ghost" href="/evaluation/">How we score</a></section>
 
 ${config.sister ? `<section class="wrap section sister">
   <div class="sister-inner">
@@ -763,6 +767,146 @@ function versionPanel(r) {
   </div>`;
 }
 
+// ---------- relationship graph (/graph/, graph.json, entry panels) ----------
+// Data model in scripts/graph.mjs; rendering in src/assets/graph.js. Shapes and phrases mirror graph.js.
+const relGraph = buildGraph(catalog, evaluation, { kindLabel: KIND_LABEL, categories });
+const gNode = new Map(relGraph.nodes.map((n) => [n.id, n]));
+const G_SHAPE = { ontology: "circle", vocabulary: "square", schema: "circle", "data-standard": "square", atlas: "circle", "knowledge-base": "square", external: "circle", project: "diamond" };
+const G_FAMILIES = [
+  ["Terminologies", ["ontology", "vocabulary"]],
+  ["Schemas & standards", ["schema", "data-standard"]],
+  ["Reference resources", ["atlas", "knowledge-base"]],
+  ["Outside the catalog", ["external", "project"]],
+];
+const G_PHRASE = {
+  imports: ["Imports", "Imported by"],
+  uses: ["Uses", "Used by"],
+  extends: ["Extends", "Extended by"],
+  "derived-from": ["Derived from", "Basis for"],
+  "maps-to": ["Maps to", "Mapped from"],
+  "part-of": ["Part of", "Has part"],
+  adopts: ["Adopts", "Adopted by"],
+};
+const G_GROUP = (type) => (type === "imports" || type === "adopts" ? type : "curated");
+const isOutside = (n) => n.type === "external" || n.type === "project";
+const swatch = (type) => `<span class="g-swatch" data-shape="${G_SHAPE[type] || "circle"}" style="--c: var(--g-${attr(type)})" aria-hidden="true"></span>`;
+const evidenceOf = (edge) => edge.evidence.map((v) => `${G_PHRASE[v.type][0]}: ${v.via.join(", ")}${v.note ? ` — ${v.note}` : ""}`).join("\n");
+const nodeChip = (id, edge) => {
+  const n = gNode.get(id);
+  const href = isOutside(n) ? n.url : `/o/${n.id}/`;
+  return `<a class="chip chip-link chip-node" href="${attr(href)}"${isOutside(n) ? ' rel="noopener nofollow"' : ""} title="${attr(edge ? evidenceOf(edge) : n.name)}">${swatch(n.type)}${esc(n.label)}</a>`;
+};
+// A node's relations grouped by phrase, in the order of G_PHRASE (outgoing before incoming).
+function relationGroups(id) {
+  const groups = new Map();
+  const add = (phrase, other, edge) => groups.set(phrase, [...(groups.get(phrase) || []), { other, edge }]);
+  for (const e of relGraph.edges) {
+    if (e.source === id) add(G_PHRASE[e.type][0], e.target, e);
+    if (e.target === id) add(G_PHRASE[e.type][1], e.source, e);
+  }
+  const rank = Object.values(G_PHRASE).flat();
+  return [...groups].sort((a, b) => rank.indexOf(a[0]) - rank.indexOf(b[0])).map(([p, items]) => [p, items.sort((x, y) => gNode.get(x.other).label.localeCompare(gNode.get(y.other).label))]);
+}
+
+function relationsPanel(e) {
+  const groups = relationGroups(e.id);
+  const n = groups.reduce((s, [, items]) => s + items.length, 0);
+  const add = config.repository ? `<a href="${attr(config.repository)}#relationships" rel="noopener">add it to the catalog</a>` : "add it to the catalog";
+  if (!n) return `<div class="panel" id="relationships"><h2>Relationships</h2><p class="muted small">No relationships with other resources are recorded yet. Know how ${esc(e.acronym || e.name)} relates to another standard or ontology? Please ${add}.</p></div>`;
+  return `<div class="panel" id="relationships">
+    <h2>Relationships <span class="count">${n}</span></h2>
+    <div class="graph-mini" data-graph="mini" data-focus="${attr(e.id)}">
+      <div class="graph-canvas" role="img" aria-label="Graph of ${attr(e.acronym || e.name)} and its ${n} direct relationships, listed below"></div>
+      <p class="graph-status">Loading graph…</p>
+    </div>
+    <dl class="facts rel-facts">${groups.map(([phrase, items]) => `<div><dt>${esc(phrase)} <span class="muted">(${items.length})</span></dt><dd>${items.map((x) => nodeChip(x.other, x.edge)).join(" ")}</dd></div>`).join("")}</dl>
+    <p class="small"><a href="/graph/?focus=${attr(e.id)}">Explore in the relationship graph →</a> <span class="muted">· Missing a relationship? Please ${add}.</span></p>
+  </div>`;
+}
+
+function graphPage() {
+  const trail = [["Home", "/"], ["Relationship graph", "/graph/"]];
+  const count = (pred) => relGraph.nodes.filter(pred).length;
+  const edgesIn = (group) => relGraph.edges.filter((x) => G_GROUP(x.type) === group).length;
+  const isolated = catalog.filter((e) => !gNode.get(e.id)?.size).sort((a, b) => (a.acronym || a.name).localeCompare(b.acronym || b.name));
+  const leaves = count((n) => isOutside(n) && n.size < 2);
+  const legend = G_FAMILIES.map(
+    ([family, types]) => `<span class="gf-family"><span class="gf-fam">${esc(family)}</span>${types
+      .map((t) => `<label class="gl-item"><input type="checkbox" checked data-node-type="${attr(t)}">${swatch(t)}<span>${esc(t === "external" ? "Vocabulary" : relGraph.nodeTypes[t] || t)}</span><span class="gl-n">${count((n) => n.type === t)}</span></label>`)
+      .join("")}</span>`
+  ).join("");
+  const edgeToggle = (group, label, hint) => `<label class="gl-item" title="${attr(hint)}"><input type="checkbox" checked data-edge-group="${group}"><span class="g-line g-line-${group}" aria-hidden="true"></span><span>${esc(label)}</span><span class="gl-n">${edgesIn(group)}</span></label>`;
+  const typeRows = Object.entries(relGraph.edgeTypes)
+    .map(([type, phrase]) => `<li><b>${esc(G_PHRASE[type][0])}</b>: <i>source</i> ${esc(phrase)} <i>target</i>. <span class="muted">${relGraph.edges.filter((x) => x.type === type).length} link${relGraph.edges.filter((x) => x.type === type).length === 1 ? "" : "s"}.</span></li>`)
+    .join("");
+  const cell = (n) => (isOutside(n) ? `<a href="${attr(n.url)}" rel="noopener nofollow">${esc(n.label)}</a>` : `<a href="/o/${attr(n.id)}/">${esc(n.label)}</a>`);
+  const rows = relGraph.edges
+    .map((x) => {
+      const evid = x.evidence.map((v) => `${x.evidence.length > 1 ? `${esc(G_PHRASE[v.type][0])}: ` : ""}${esc(v.via.join(", "))}${v.note ? ` — ${esc(v.note)}` : ""}${v.url ? ` (<a href="${attr(v.url)}" rel="noopener nofollow">source</a>)` : ""}`).join("<br>");
+      return `<tr><td>${cell(gNode.get(x.source))}</td><td>${esc(G_PHRASE[x.type][0].toLowerCase())}</td><td>${cell(gNode.get(x.target))}</td><td class="small">${evid}</td></tr>`;
+    })
+    .join("");
+  const body = `
+<section class="page-head wrap">
+  ${crumbsHtml(trail)}
+  <h1>Relationship graph</h1>
+  <p class="lede">How the ${catalog.length} resources in the catalog build on each other: which ontologies import which, which standards reference, extend or map to others, and which projects adopt them. Hover a node to see its neighbours, click to pin it, double-click to open its page.</p>
+</section>
+<section class="wrap graph-section" data-graph="full">
+  <div class="graph-toolbar">
+    <label class="graph-search"><span class="sr">Find a resource</span>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+      <input type="search" list="graph-nodes" placeholder="Find e.g. BIDS, Uberon, BICAN…" autocomplete="off"><datalist id="graph-nodes"></datalist>
+    </label>
+    <div class="graph-zoom" role="group" aria-label="Zoom"><button type="button" class="btn-ghost" data-zoom="in" aria-label="Zoom in">+</button><button type="button" class="btn-ghost" data-zoom="out" aria-label="Zoom out">−</button><button type="button" class="btn-ghost" data-zoom="reset">Fit</button></div>
+  </div>
+  <div class="graph-filters">
+    <fieldset><legend>Resources</legend>${legend}</fieldset>
+    <fieldset><legend>Links</legend>
+      ${edgeToggle("curated", "Curated relations", "uses, extends, derived from, maps to, part of (data/catalog.json)")}
+      ${edgeToggle("imports", "Imports", "harvested from OLS, Bioregistry and the OBO Dashboard")}
+      ${edgeToggle("adopts", "Adoption", "projects adopting a resource (catalog usedBy, OBO Foundry registry)")}
+      <label class="gl-item" title="Vocabularies and projects linked to only one catalog entry"><input type="checkbox" data-leaves><span>Single-link vocabularies &amp; projects</span><span class="gl-n">${leaves}</span></label>
+    </fieldset>
+  </div>
+  <div class="graph-layout">
+    <div class="graph-stage">
+      <div class="graph-canvas" role="img" aria-label="Network of ${relGraph.nodes.length} resources and ${relGraph.edges.length} relationships; the table below lists every relationship"></div>
+      <p class="graph-status" aria-live="polite">Loading graph…</p>
+      <noscript><p class="graph-status">The interactive graph needs JavaScript. Every relationship is listed in the table below.</p></noscript>
+    </div>
+    <aside class="panel graph-info" aria-live="polite">
+      <p class="small muted">Select a node to see what it imports, uses and is adopted by, with the source of each link.</p>
+      <p class="small muted">Colour groups the kinds of resource, and shape tells the two kinds in a group apart. Grey nodes are outside the catalog. Arrows point from the resource that imports, uses or adopts to the one it relies on.</p>
+    </aside>
+  </div>
+</section>
+<section class="wrap section prose">
+  <h2>How to read the graph</h2>
+  <p>Each arrow reads <i>source → target</i>. Links come from three places, and each one keeps its provenance:</p>
+  <ul>
+    <li><b>Harvested imports.</b> These come from OLS (<code>importsFrom</code>/<code>exportsTo</code>), Bioregistry (<code>dependsOn</code>/<code>appearsIn</code>) and the OBO Dashboard (<code>usedBy</code>) during each <a href="/evaluation/">evaluation run</a>. Vocabularies outside the catalog that entries import (BFO, RO, IAO…) are shown in grey.</li>
+    <li><b>Curated relations.</b> These are listed under <code>relations</code> in <code>data/catalog.json</code>, each with a note and a link to where the relation is documented, for example BIDS → Cognitive Atlas through the <code>CogAtlasID</code> task field. A <code>usedBy</code> item that names another entry also counts as a relation.</li>
+    <li><b>Adoption.</b> These are projects that adopt a resource, from the curated <code>usedBy</code> lists and the OBO Foundry registry. Projects that adopt several resources connect them, for example BICAN or SPARC.</li>
+  </ul>
+  <ul class="small">${typeRows}</ul>
+  <p class="small muted">Reuse by ontologies outside the catalog isn't drawn, because it would add hundreds of leaves (CL alone is reused by about 90 ontologies). It is listed on each entry's page under “Portals &amp; registries”.</p>
+  ${
+    isolated.length
+      ? `<h2 id="not-connected">Not connected yet</h2><p>${isolated.length} resources have no recorded relationship. If you know how they relate to other standards or ontologies, please ${config.repository ? `<a href="${attr(config.repository)}#relationships" rel="noopener">add a relation</a>` : "add a relation"}.</p><p>${isolated.map((e) => `<a class="chip chip-link chip-node" href="/o/${attr(e.id)}/">${swatch(e.kind)}${esc(e.acronym || e.name)}</a>`).join(" ")}</p>`
+      : ""
+  }
+  <h2>Data</h2>
+  <p><a href="/graph.json"><code>/graph.json</code></a> holds the nodes and edges with their evidence. It uses the same <code>{nodes, edges}</code> shape as the ORINOCO-Lite explorer (nodes: <code>id</code>, <code>label</code>, <code>type</code>, <code>size</code>, <code>url</code>; edges: <code>id</code>, <code>source</code>, <code>target</code>, <code>type</code>), so either viewer can render it. The graph is drawn with <a href="https://www.sigmajs.org/" rel="noopener">sigma.js</a> and <a href="https://graphology.github.io/" rel="noopener">graphology</a> and laid out with ForceAtlas2.</p>
+  <details class="rel-table">
+    <summary>All ${relGraph.edges.length} relationships as a table</summary>
+    <div class="table-wrap"><table class="sortable graph-table"><thead><tr><th>Source</th><th>Relation</th><th>Target</th><th>Evidence</th></tr></thead><tbody>${rows}</tbody></table></div>
+  </details>
+</section>`;
+  const description = `Interactive graph of how ${catalog.length} neuroscience ontologies, schemas, vocabularies and data standards import, reference and map to each other, and which projects adopt them.`;
+  return page({ title: "Relationship graph", pathname: "/graph/", body, description, scripts: ["/assets/graph.js"], graph: [webPage("WebPage", "/graph/", "Relationship graph", description, { about: { "@id": CATALOG_ID } }), breadcrumbs(trail)] });
+}
+
 function entryPage(e) {
   const r = ev(e.id);
   const cat = catById[e.category];
@@ -857,6 +1001,8 @@ function entryPage(e) {
     ${portalsPanel(e, r)}
     ${robotComparePanel(r)}
 
+    ${relationsPanel(e)}
+
     ${e.modules?.length ? `<div class="panel"><h2>Schemas &amp; modules <span class="count">${e.modules.length}</span></h2><ul class="modules">${e.modules.map((m) => `<li><a href="${attr(m.url)}" rel="noopener">${esc(m.name)}${ext}</a><span class="muted">${esc(m.note || "")}</span></li>`).join("")}</ul></div>` : ""}
 
     <div class="panel" id="evaluation">
@@ -936,6 +1082,7 @@ function entryPage(e) {
     body,
     description: description.length > 300 ? description.slice(0, 297) + "…" : description,
     graph: [webPage("ItemPage", `/o/${e.id}/`, title, e.description, { mainEntity: { "@id": abs(`/o/${e.id}/`) + "#dataset" } }), datasetLd(e), breadcrumbs(trail)],
+    scripts: ["/assets/graph.js"],
   });
 }
 
@@ -1434,6 +1581,8 @@ for (const e of catalog) {
 }
 put("evaluation/index.html", evaluationPage());
 put("catalog/index.html", catalogPage());
+put("graph/index.html", graphPage());
+put("graph.json", JSON.stringify(relGraph));
 put("search/index.html", searchPage());
 put(
   "search-index.json",

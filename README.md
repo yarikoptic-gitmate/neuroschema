@@ -17,6 +17,7 @@ OOPS_IMAGE=neuroschema/oops ROBOT_JAR=robot.jar node scripts/quality.mjs   # qua
 python3 scripts/pitfalls.py scan ontology.owl   # Python pitfall scan (fallback when OOPS! can't run)
 npm run rescore           # recompute scores from stored facts after a rubric change (no network)
 npm run quality:all       # ROBOT, pitfalls and imports read from the file, for every ontology; resumable
+npm run vendor            # refresh the vendored graph libraries (sigma.js, graphology, ForceAtlas2) from npm
 ```
 
 Requires Node ≥ 18. There's nothing to `npm install`. Set `GITHUB_TOKEN` locally to avoid GitHub's 60 requests/hour limit when running `npm run evaluate`.
@@ -59,14 +60,44 @@ Grades: A ≥ 85, B ≥ 70, C ≥ 55, D ≥ 40, E < 40. The rules live in [`scri
 
 | Path | What |
 |---|---|
-| `data/catalog.json` | The curated catalog (edit via PR or the submission flow) |
+| `data/catalog.json` | The curated catalog (edit via PR or the submission flow), including curated `relations` |
 | `data/catalog.schema.json` | JSON Schema for entries |
 | `data/categories.json` | Domains |
 | `data/evaluation.json` | Latest evaluation (generated) |
 | `data/runs/*.json` | Archived run snapshots (generated, append-only) |
-| `scripts/` | build, validate, evaluate, rubric, issue → entry, PR report |
-| `src/assets/` | CSS, JS, logos, favicons, social image |
+| `scripts/` | build, validate, evaluate, rubric, relationship graph, issue → entry, PR report |
+| `src/assets/` | CSS, JS (including the graph explorer `graph.js`), logos, favicons, social image |
+| `src/assets/vendor/` | Pinned sigma.js, graphology and ForceAtlas2 builds, with licences and `SHA256SUMS` (`npm run vendor`) |
 | `.github/` | issue form, PR template, workflows |
+
+## Relationships
+
+[`/graph/`](https://neuroschema.org/graph/) draws how the catalogued resources relate. Colour and shape mark the kind of resource: blue for ontologies and vocabularies, pink for schemas and data standards, green for atlases and knowledge bases. Within each pair the first kind is a circle and the second a square. Grey marks vocabularies and projects outside the catalog. Each entry page also shows its own neighbourhood in a Relationships panel. The data is published as [`/graph.json`](https://neuroschema.org/graph.json), in the same `{nodes, edges}` shape as the ORINOCO-Lite explorer. The graph is built by `scripts/graph.mjs`, rendered with [sigma.js](https://www.sigmajs.org/) + [graphology](https://graphology.github.io/), and laid out with ForceAtlas2 (`src/assets/graph.js`).
+
+Edges come from three places, and each keeps its evidence:
+
+- **Imports between ontologies**, harvested at evaluation time from OLS, Bioregistry, the ontology file itself and the OBO Dashboard.
+- **Curated relations** in `data/catalog.json`. A `usedBy` item that names another entry also counts as a relation (BIDS listed under HED's `usedBy` becomes BIDS → uses → HED).
+- **Adoption**, from `usedBy` and OBO Foundry registry usages. Projects shared by several entries (BICAN, SPARC, DANDI…) connect them.
+
+Most schemas and data standards are not in OLS, so their links have to be curated. Add them to an entry as `relations`, read as "*this entry* *type* *target*":
+
+```json
+"relations": [
+  { "type": "derived-from", "target": "bids", "note": "Built on BIDS, with neuroimaging-specific parts removed and animal and tissue data accommodated", "url": "https://doi.org/10.1101/2021.02.10.430563" }
+]
+```
+
+| `type` | Meaning |
+|---|---|
+| `imports` | imports or reuses terms from the target |
+| `uses` | references terms, identifiers or annotations from the target |
+| `extends` | extends the target |
+| `derived-from` | is derived from or adapted from the target |
+| `maps-to` | provides a mapping or conversion to the target |
+| `part-of` | is a component or module of the target |
+
+`target` must be the id of another entry, and `url` should point to where the relation is documented. `npm run validate` checks both. The [graph page](https://neuroschema.org/graph/#not-connected) lists the entries that have no relationship recorded yet.
 
 ## Contributions (all through Git)
 
